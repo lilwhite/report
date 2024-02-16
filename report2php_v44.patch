@@ -1,0 +1,44 @@
+--- report2.php.orig	2020-03-09 21:09:29.271512379 +0200
++++ report2.php	2020-03-19 12:50:39.933174092 +0200
+@@ -42,6 +42,7 @@
+ 	'filter_set' =>		[T_ZBX_STR,			O_OPT,	P_SYS,			null,		null],
+ 	'from' =>			[T_ZBX_RANGE_TIME,	O_OPT,	P_SYS,			null,		null],
+ 	'to' =>				[T_ZBX_RANGE_TIME,	O_OPT,	P_SYS,			null,		null],
++	'exportFile' =>		[T_ZBX_STR,			O_OPT,	P_SYS,			null,		null]
+ ];
+ check_fields($fields);
+ validateTimeSelectorPeriod(getRequest('from'), getRequest('to'));
+@@ -192,6 +193,7 @@
+ 					AVAILABILITY_REPORT_BY_TEMPLATE => _('By trigger template')
+ 				])
+ 			])
++			->addItem(new CSubmit('exportFile', _('Export to CSV')))
+ 	));
+ 
+ 	/*
+@@ -455,9 +457,24 @@
+ 	$triggerTable = (new CTableInfo())->setHeader([_('Host'), _('Name'), _('Problems'), _('Ok'), _('Graph')]);
+ 
+ 	CArrayHelper::sort($triggers, ['host_name', 'description']);
+-
++	
++	if(hasRequest('exportFile')) {
++		ob_end_clean();
++		$csvText = "Host;Name;Problems;Ok\n";
++		foreach ($triggers as $trigger) {
++			$availability = calculateAvailability($trigger['triggerid'], $data['filter']['timeline']['from_ts'], $data['filter']['timeline']['to_ts']);
++			$csvText .= $trigger['hosts'][0]['name'].";".$trigger['description'].";".sprintf('%.4f%%', $availability['true']).";".sprintf('%.4f%%', $availability['false'])."\n";
++		}
++		$filename = 'temp/report2_'.time().".csv";
++		header('Content-Description: File Transfer');
++            	header('Content-Type: application/force-download');
++            	header('Content-Disposition: attachment; filename="'.basename($filename).'"');
++            	die($csvText);
++	}	
++	
+ 	$paging = getPagingLine($triggers, ZBX_SORT_UP, new CUrl('report2.php'));
+ 
++	
+ 	foreach ($triggers as $trigger) {
+ 		$availability = calculateAvailability($trigger['triggerid'], $data['filter']['timeline']['from_ts'],
+ 			$data['filter']['timeline']['to_ts']

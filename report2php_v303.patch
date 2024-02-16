@@ -1,0 +1,65 @@
+--- report2_orig.php    2016-05-18 15:59:38.000000000 +0300
++++ report2.php 2016-09-02 15:43:37.609578517 +0300
+@@ -41,7 +41,8 @@
+        'filter_rst'=>                  [T_ZBX_STR,     O_OPT,  P_SYS,                  null,           null],
+        'filter_set' =>                 [T_ZBX_STR,     O_OPT,  P_SYS,                  null,           null],
+        'filter_timesince' =>   [T_ZBX_STR,     O_OPT,  P_UNSET_EMPTY,  null,           null],
+-       'filter_timetill' =>    [T_ZBX_STR,     O_OPT,  P_UNSET_EMPTY,  null,           null]
++       'filter_timetill' =>    [T_ZBX_STR,     O_OPT,  P_UNSET_EMPTY,  null,           null],
++       'exportFile' =>         [T_ZBX_STR,     O_OPT,  P_SYS,                  null,           null]
+ ];
+ check_fields($fields);
+
+@@ -172,6 +173,7 @@
+                AVAILABILITY_REPORT_BY_HOST => _('By host'),
+                AVAILABILITY_REPORT_BY_TEMPLATE => _('By trigger template')
+        ])]);
++       $controls->addItem(new CSubmit('exportFile', _('Export to CSV')));
+        $headerForm = (new CForm('get'))->addItem($controls);
+        $reportWidget->setControls($headerForm);
+
+@@ -375,6 +377,18 @@
+
+        CArrayHelper::sort($triggers, ['host', 'description']);
+
++       if(hasRequest('exportFile')) {
++           $csvText = "Host Name Problems Ok\n";
++           foreach ($triggers as $trigger) {
++               $availability = calculateAvailability($trigger['triggerid'], getRequest('filter_timesince'), getRequest('filter_timetill'));
++               $csvText .= $trigger['hosts'][0]['name'].";".$trigger['description'].";".sprintf('%.4f%%', $availability['true']).";".sprintf('%.4f%%', $availability['false'])."\n";
++           }
++           $filename = 'temp/report2_'.time().".csv";
++           $file = fopen($filename,'w+');
++           fwrite($file,$csvText);
++           fclose($file);
++       }
++
+        $paging = getPagingLine($triggers, ZBX_SORT_UP, new CUrl('report2.php'));
+
+        foreach ($triggers as $trigger) {
+@@ -397,4 +411,25 @@
+                ->show();
+ }
+
++if (hasRequest('exportFile')) {
++?>
++<script type="text/javascript">
++        function downloadFile(url)
++        {
++            var iframe;
++            iframe = document.getElementById("download-container");
++            if (iframe === null)
++            {
++                iframe = document.createElement('iframe');
++                iframe.id = "download-container";
++                iframe.style.visibility = 'hidden';
++                document.body.appendChild(iframe);
++            }
++            iframe.src = url;
++        }
++        downloadFile('<?=$filename?>');
++</script>
++<?php
++}
++
+ require_once dirname(__FILE__).'/include/page_footer.php';
